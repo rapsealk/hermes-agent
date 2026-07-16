@@ -2328,7 +2328,15 @@ def probe_api_models(
     if owned is not None:
         return _probe_result(*owned)
 
-    alternate_base = normalized[:-3].rstrip("/") if normalized.endswith("/v1") else normalized + "/v1"
+    from utils import url_path_has_version_segment
+
+    if normalized.endswith("/v1"):
+        alternate_base = normalized[:-3].rstrip("/")
+    elif url_path_has_version_segment(normalized):
+        # Already versioned (/api/v2, /v1beta, …) — a /v1 alternate is nonsense.
+        alternate_base = ""
+    else:
+        alternate_base = normalized + "/v1"
     candidates: list[tuple[str, bool]] = [(normalized, False)]
     if alternate_base and alternate_base != normalized:
         candidates.append((alternate_base, True))

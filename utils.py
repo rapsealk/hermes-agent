@@ -837,6 +837,26 @@ def base_url_path(base_url: str) -> str:
     return (parsed.path if parsed else "").lower().rstrip("/")
 
 
+def url_path_has_version_segment(url: str) -> bool:
+    """Return True when the URL path contains an API version segment.
+
+    A segment counts as versioned when it looks like ``v<digit>...`` —
+    ``/v1``, ``/api/v2``, ``/v1beta``, ``/v2023-01-01``. Used to decide
+    whether an OpenAI-compatible base URL might still need a ``/v1`` suffix.
+    """
+    raw = str(url or "").strip()
+    if not raw:
+        return False
+    try:
+        path = urlparse(raw if "://" in raw else f"//{raw}").path
+    except Exception:
+        return False
+    return any(
+        len(segment) > 1 and segment[0] in "vV" and segment[1].isdigit()
+        for segment in path.split("/")
+    )
+
+
 def model_forces_max_completion_tokens(model: str) -> bool:
     """True for OpenAI families that reject ``max_tokens`` (HTTP 400 ``unsupported_parameter``)."""
     m = (model or "").strip().lower().rsplit("/", 1)[-1]
