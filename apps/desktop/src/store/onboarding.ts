@@ -12,6 +12,7 @@ import {
   submitOAuthCode,
   validateProviderCredential
 } from '@/hermes'
+import { isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
 import { evaluateRuntimeReadiness, type RuntimeReadinessResult } from '@/lib/runtime-readiness'
 import { notify, notifyError } from '@/store/notifications'
 import type { ModelOptionProvider, OAuthProvider, OAuthStartResponse } from '@/types/hermes'
@@ -76,6 +77,7 @@ export interface DesktopOnboardingState {
 
 export interface OnboardingContext {
   onCompleted?: () => void
+  profile?: string
   requestGateway: <T = unknown>(method: string, params?: Record<string, unknown>) => Promise<T>
 }
 
@@ -184,9 +186,8 @@ async function checkRuntime(ctx: OnboardingContext, requestedProvider?: string):
 }
 
 function shouldPreserveConfiguredOnFallback(runtime: RuntimeReadinessResult, state: DesktopOnboardingState): boolean {
-  // A fallback result means both runtime probes were non-authoritative
-  // (transport timeout/disconnect). Keep a previously verified configured
-  // state instead of forcing the blocking onboarding overlay.
+  // Non-authoritative transport fallback only — keep a previously verified
+  // configured state instead of forcing the blocking onboarding overlay.
   return runtime.source === 'fallback' && state.configured === true && !state.requested
 }
 
@@ -387,6 +388,16 @@ async function refreshProviders() {
 
 export function requestDesktopOnboarding(reason = DEFAULT_ONBOARDING_REASON) {
   patch({ reason: reason.trim() || DEFAULT_ONBOARDING_REASON, requested: true })
+}
+
+export function requestDesktopOnboardingForCredentialWarning(reason: null | string | undefined) {
+  const warning = reason?.trim()
+
+  if (!warning || !isProviderSetupErrorMessage(warning)) {
+    return
+  }
+
+  requestDesktopOnboarding(warning)
 }
 
 // Open the onboarding provider selector on demand from an already-configured
@@ -810,6 +821,10 @@ export async function saveOnboardingLocalEndpoint(baseUrl: string, apiKey: strin
   // the endpoint is up; an unreachable probe hard-blocks because we can't
   // resolve a model to route to.
   let model = ''
+  // The probe tries the URL as entered and its "/v1" variant; persist the one
+  // that answered — chat POSTs {base_url}/chat/completions verbatim, so the
+  // bare root would 404 even though detection looked green.
+  let resolvedUrl = url
 
   try {
     const probe = await validateProviderCredential('OPENAI_BASE_URL', url, key)
@@ -823,6 +838,7 @@ export async function saveOnboardingLocalEndpoint(baseUrl: string, apiKey: strin
     }
 
     model = (probe.models?.[0] ?? '').trim()
+    resolvedUrl = probe.resolved_base_url?.trim() || url
   } catch {
     return { ok: false, message: `Could not reach ${url}.` }
   }
@@ -835,7 +851,7 @@ export async function saveOnboardingLocalEndpoint(baseUrl: string, apiKey: strin
   }
 
   try {
-    await setModelAssignment({ scope: 'main', provider: 'custom', model, base_url: url, api_key: key })
+    await setModelAssignment({ scope: 'main', provider: 'custom', model, base_url: resolvedUrl, api_key: key })
     await ctx.requestGateway('reload.env').catch(() => undefined)
 
     const runtime = await checkRuntime(ctx)
@@ -843,7 +859,7 @@ export async function saveOnboardingLocalEndpoint(baseUrl: string, apiKey: strin
     if (!runtime.ready) {
       const detail = (runtime.reason ?? '').trim()
 
-      return { ok: false, message: detail || `Saved, but Hermes still cannot reach ${url}.` }
+      return { ok: false, message: detail || `Saved, but Hermes still cannot reach ${resolvedUrl}.` }
     }
 
     notifyReady('Local / custom endpoint')
