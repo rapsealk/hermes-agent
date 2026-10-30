@@ -211,6 +211,14 @@ def _runtime_model_config(agent, existing: dict | None = None) -> dict:
             config[key] = value
         else:
             config.pop(key, None)
+    if provider and isinstance(config.get("gateway_runtime"), dict):
+        # A Desktop/TUI model switch persists only the top-level keys above, but resume prefers the
+        # nested ``gateway_runtime`` route (the messaging gateway's last route): a snapshot left on
+        # the old provider routes the resumed chat to the provider the user left — or fails to start
+        # when that provider is registered but unconfigured (GH #146345). Rewrite it in the shape
+        # ``SessionDB.update_session_model`` writes; a row without one keeps none.
+        config["gateway_runtime"] = {
+            "provider": provider, "base_url": base_url or None, "api_mode": live["api_mode"] or None}
     return config
 
 
