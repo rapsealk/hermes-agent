@@ -959,4 +959,60 @@ class TestRuntimeModelConfigDropsStaleKeys:
 
         assert config == {"model": "deepseek/deepseek-v4-flash-0731", "provider": "nous"}
 
+    def test_desktop_switch_moves_both_route_shapes(self):
+        """A Desktop/TUI model switch persists the live route into BOTH shapes:
+        the top-level keys above and the nested ``gateway_runtime`` snapshot
+        resume reads first (`SessionDB.session_gateway_runtime`). A snapshot
+        left on the old provider routes the resumed chat to the provider the
+        user left — or fails to start when that provider is registered but
+        unconfigured (GH #146345)."""
+        from tui_gateway.agent_factory import _runtime_model_config
+
+        existing = {
+            "model": "openai/gpt-5.6",
+            "provider": "nous",
+            "base_url": "https://inference-api.nousresearch.com/v1",
+            "api_mode": "chat_completions",
+            "gateway_runtime": {
+                "provider": "nous",
+                "base_url": "https://inference-api.nousresearch.com/v1",
+                "api_mode": "chat_completions",
+            },
+        }
+        agent = types.SimpleNamespace(
+            model="claude-opus-5-5",
+            provider="anthropic",
+            base_url="https://api.anthropic.com",
+            api_mode="anthropic_messages",
+            reasoning_config=None,
+            service_tier=None,
+        )
+        config = _runtime_model_config(agent, existing)
+
+        assert config["gateway_runtime"]["provider"] == "anthropic"
+        assert config["gateway_runtime"]["base_url"] == "https://api.anthropic.com"
+        assert config["gateway_runtime"]["api_mode"] == "anthropic_messages"
+        assert config["provider"] == "anthropic"
+        assert config["base_url"] == "https://api.anthropic.com"
+
+    def test_switch_keeps_no_nested_route_when_row_has_none(self):
+        """A row that never had a ``gateway_runtime`` snapshot keeps none: the
+        top-level keys stay the only route shapes written, so first writes and
+        CLI-style updates still produce only the agent identity."""
+        from tui_gateway.agent_factory import _runtime_model_config
+
+        existing = {"model": "openai/gpt-5.6", "provider": "nous"}
+        agent = types.SimpleNamespace(
+            model="claude-opus-5-5",
+            provider="anthropic",
+            base_url="https://api.anthropic.com",
+            api_mode="anthropic_messages",
+            reasoning_config=None,
+            service_tier=None,
+        )
+        config = _runtime_model_config(agent, existing)
+
+        assert "gateway_runtime" not in config, config
+        assert config["provider"] == "anthropic"
+
 
