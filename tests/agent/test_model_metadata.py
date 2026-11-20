@@ -16,6 +16,7 @@ import pytest
 import hermes_yaml as yaml
 from unittest.mock import patch, MagicMock
 
+import agent.model_metadata_disk
 from agent.model_metadata import (
     CONTEXT_PROBE_TIERS,
     DEFAULT_CONTEXT_LENGTHS,
@@ -921,9 +922,7 @@ class TestFetchEndpointModelMetadata:
         one-shot Bot Mode DM hop paid on startup. Expired memos re-probe."""
         import agent.model_metadata as mm
 
-        monkeypatch.setattr(
-            mm, "_get_endpoint_metadata_cache_path", lambda: tmp_path / "endpoint_model_metadata.json"
-        )
+        monkeypatch.setattr(agent.model_metadata_disk, "_get_endpoint_metadata_cache_path", lambda: tmp_path / "endpoint_model_metadata.json")
         success = MagicMock()
         success.status_code = 200
         success.json.return_value = {"data": [{"id": "test/model", "context_length": 32768}]}
@@ -1465,9 +1464,9 @@ class TestFetchModelMetadata:
         mm._model_metadata_cache_time = 0
 
     def _isolate_disk_cache(self, monkeypatch, tmp_path):
-        import agent.model_metadata as mm
+        import agent.model_metadata_disk as disk
         cache_path = tmp_path / "openrouter_model_metadata.json"
-        monkeypatch.setattr(mm, "_get_model_metadata_cache_path", lambda: cache_path)
+        monkeypatch.setattr(disk, "_get_model_metadata_cache_path", lambda: cache_path)
         return cache_path
 
 

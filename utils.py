@@ -849,7 +849,7 @@ def url_path_has_version_segment(url: str) -> bool:
         return False
     try:
         path = urlparse(raw if "://" in raw else f"//{raw}").path
-    except Exception:
+    except ValueError:
         return False
     return any(
         len(segment) > 1 and segment[0] in "vV" and segment[1].isdigit()

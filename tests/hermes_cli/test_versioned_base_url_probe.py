@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import hermes_cli.models as models
+from hermes_cli import models
 
 
 def _probe_urls_of(base_url: str) -> list[str]:

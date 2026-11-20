@@ -594,7 +594,8 @@ def pricing_cache_scope(
     """The current endpoint identity a provider's pricing cache is keyed on. Resolves local configuration
     only, never fetches: picker prewarm single-flight uses it so an endpoint rotation can start a new
     worker while the previous endpoint is still slow or unreachable."""
-    from hermes_cli.models import _deepinfra_catalog_url, _pricing_profile_key, normalize_provider
+    from hermes_cli.models_deepinfra import _deepinfra_catalog_url
+    from hermes_cli.models import _pricing_profile_key, normalize_provider
     normalized = resolve_pricing_provider(provider, base_url=base_url)
     static = _STATIC_PRICING_SCOPES.get(normalized)
     if static:
@@ -621,7 +622,8 @@ def pricing_cache_scope(
 
 def _cached_only_pricing(normalized: str) -> dict[str, dict[str, str]]:
     """Process-resident pricing for *normalized* without any provider I/O."""
-    from hermes_cli.models import _deepinfra_catalog_cache, _deepinfra_catalog_url, _pricing_profile_key
+    from hermes_cli.models_deepinfra import _deepinfra_catalog_cache, _deepinfra_catalog_url
+    from hermes_cli.models import _pricing_profile_key
     if normalized == "deepinfra":
         cache_key, _url = _deepinfra_catalog_url()
         return _fetch_deepinfra_pricing() if cache_key in _deepinfra_catalog_cache else {}
@@ -712,7 +714,7 @@ def _fetch_deepinfra_pricing(timeout: float = 5.0, *, force_refresh: bool = Fals
     """DeepInfra chat-model pricing: ``input_tokens`` / ``output_tokens`` / ``cache_read_tokens`` in
     $/MTok → per-token ``prompt`` / ``completion`` / ``input_cache_read`` (cached by the by-tag
     helper)."""
-    from hermes_cli.models import _fetch_deepinfra_models_by_tag
+    from hermes_cli.models_deepinfra import _fetch_deepinfra_models_by_tag
     items = _fetch_deepinfra_models_by_tag("chat", timeout=timeout, force_refresh=force_refresh)
     result: dict[str, dict[str, str]] = {}
     for item in items or []:

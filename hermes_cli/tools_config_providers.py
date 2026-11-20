@@ -668,7 +668,7 @@ def _configure_stt_model(stt_provider: str, config: dict) -> None:
 
     catalog = STT_MODEL_CATALOG.get(stt_provider)
     if catalog is None and stt_provider == "deepinfra":
-        from hermes_cli.models import deepinfra_model_ids
+        from hermes_cli.models_deepinfra import deepinfra_model_ids
         catalog = deepinfra_model_ids("stt")
     if not catalog:
         return
