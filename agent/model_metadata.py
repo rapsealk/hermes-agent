@@ -1043,8 +1043,16 @@ def fetch_endpoint_model_metadata(base_url: str, api_key: str = "", force_refres
     # Blackholed: return empty WITHOUT caching so it is retried once the entry expires.
     if _endpoint_blackholed(normalized):
         return {}
-    alternate = normalized[:-3].rstrip("/") if normalized.endswith("/v1") else normalized + "/v1"
-    candidates = [normalized] + ([alternate] if alternate != normalized else [])
+    from utils import url_path_has_version_segment
+
+    if normalized.endswith("/v1"):
+        alternate = normalized[:-3].rstrip("/")
+    elif url_path_has_version_segment(normalized):
+        # Already versioned (/api/v2, /v1beta, …) — a /v1 alternate is nonsense.
+        alternate = ""
+    else:
+        alternate = normalized + "/v1"
+    candidates = [normalized] + ([alternate] if alternate and alternate != normalized else [])
     headers = _auth_headers(api_key)
     verify = model_metadata_http.resolve_verify(normalized)
     last_error: Optional[Exception] = None
