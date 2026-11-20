@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def _live_models() -> Optional[list[dict[str, Any]]]:
     """Fetch ``image-gen``-tagged models from the DeepInfra catalog."""
     try:
-        from hermes_cli.models import _fetch_deepinfra_models_by_tag
+        from hermes_cli.models_deepinfra import _fetch_deepinfra_models_by_tag
     except Exception as exc:
         logger.debug("Cannot import _fetch_deepinfra_models_by_tag: %s", exc)
         return None
@@ -113,7 +113,7 @@ class DeepInfraImageGenProvider(StaticImageGenProvider):
                 "api.deepinfra.com so the live catalog can be fetched.",
                 "no_model_available", prompt=prompt)
         size = size_for(aspect)
-        from hermes_cli.models import deepinfra_base_url
+        from hermes_cli.models_deepinfra import deepinfra_base_url
 
         # The openai SDK supplies retry, timeout and error mapping.
         openai, err = import_openai("deepinfra", aspect)

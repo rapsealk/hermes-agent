@@ -937,10 +937,18 @@ async def _probe_openai_compatible_models(base_url: str, headers: Optional[dict]
     URL verbatim, so a bare host root that only "detected" via ``/v1/models`` would 404 every chat
     (#65488). ``response`` is None when no candidate could be reached at all."""
     base = base_url.rstrip("/")
-    alternate = base[:-3].rstrip("/") if base.lower().endswith("/v1") else base + "/v1"
+    from utils import url_path_has_version_segment
+
+    if base.lower().endswith("/v1"):
+        alternate = base[:-3].rstrip("/")
+    elif url_path_has_version_segment(base):
+        # Already versioned (/api/v2, /v1beta, …) — a /v1 alternate is nonsense.
+        alternate = ""
+    else:
+        alternate = base + "/v1"
     resolved, resp = base, None
     async with _endpoint_probe_client(base, 8.0) as client:
-        for candidate in (base, alternate):
+        for candidate in ((base, alternate) if alternate else (base,)):
             try:
                 candidate_resp = await client.get(candidate + "/models", headers=headers)
             except Exception:

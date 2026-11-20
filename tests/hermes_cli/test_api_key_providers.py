@@ -727,9 +727,9 @@ def _deepinfra_cache_isolation(monkeypatch):
     reset too, so a test that simulates an unreachable catalog can't suppress
     a later test's fetch within the failure TTL.
     """
-    import hermes_cli.models as _models_mod
-    monkeypatch.setattr(_models_mod, "_deepinfra_catalog_cache", {})
-    monkeypatch.setattr(_models_mod, "_deepinfra_catalog_neg_cache", {})
+    import hermes_cli.models_deepinfra as _di_mod
+    monkeypatch.setattr(_di_mod, "_deepinfra_catalog_cache", {})
+    monkeypatch.setattr(_di_mod, "_deepinfra_catalog_neg_cache", {})
     yield
 
 
@@ -757,7 +757,7 @@ class TestFetchDeepInfraModels:
         monkeypatch.setattr(
             models, "_urlopen_model_catalog_request", lambda *a, **kw: _Resp()
         )
-        from hermes_cli.models import _fetch_deepinfra_models
+        from hermes_cli.models_deepinfra import _fetch_deepinfra_models
         result = _fetch_deepinfra_models()
 
         assert result is not None
@@ -791,7 +791,8 @@ class TestFetchDeepInfraModels:
         monkeypatch.setenv("DEEPINFRA_API_KEY", "test-key")
         monkeypatch.setattr(models, "_urlopen_model_catalog_request", _safe_open)
 
-        assert models._fetch_deepinfra_catalog(force_refresh=True) == []
+        from hermes_cli.models_deepinfra import _fetch_deepinfra_catalog
+        assert _fetch_deepinfra_catalog(force_refresh=True) == []
         assert seen == {"authorization": "Bearer test-key", "timeout": 5.0}
 
 
@@ -838,7 +839,7 @@ class TestDeepInfraTagFiltering:
             # null metadata — stub model, must be skipped
             {"id": "stub-model", "metadata": None},
         ]}
-        from hermes_cli.models import _fetch_deepinfra_models_by_tag
+        from hermes_cli.models_deepinfra import _deepinfra_catalog_cache, _fetch_deepinfra_models_by_tag
         import hermes_cli.models as _m
 
         for surface in ("chat", "image-gen", "tts", "stt", "embed"):
@@ -848,7 +849,7 @@ class TestDeepInfraTagFiltering:
                 _make_urlopen_returning(payload),
             )
             # Reset cache between iterations so each surface re-parses the payload.
-            _m._deepinfra_catalog_cache.clear()
+            _deepinfra_catalog_cache.clear()
             got = _fetch_deepinfra_models_by_tag(surface)
             assert got is not None
             ids = {item["id"] for item in got}
